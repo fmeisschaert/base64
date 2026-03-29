@@ -49,7 +49,7 @@ void encode_base64(const unsigned char *src, size_t len,unsigned char *dst)
 
 		unsigned char v0 = c0 >> 2;
 		unsigned char v1 = (c0 << 4 & 0x3f) | c1 >> 4;
-		unsigned char v2 = (c1 << 2 & 0x3f) | c2 >> 6; 
+		unsigned char v2 = (c1 << 2 & 0x3f) | c2 >> 6;
 		unsigned char v3 = c2 & 0x3f;
 
 		dst[4*i]   = base64_value_char(v0);
@@ -59,32 +59,32 @@ void encode_base64(const unsigned char *src, size_t len,unsigned char *dst)
 	}
 
 	switch (r) {
-		case 1: {
-				unsigned char c0 = src[3*q];
+	case 1: {
+			unsigned char c0 = src[3*q];
 
-				unsigned char v0 = c0 >> 2;
-				unsigned char v1 = c0 << 4 & 0x3f;
+			unsigned char v0 = c0 >> 2;
+			unsigned char v1 = c0 << 4 & 0x3f;
 
-				dst[4*q]   = base64_value_char(v0);
-				dst[4*q+1] = base64_value_char(v1);
-				dst[4*q+2] = '=';
-				dst[4*q+3] = '=';
-			}
-			break;
-		case 2: {
-				unsigned char c0 = src[3*q];
-				unsigned char c1 = src[3*q+1];
+			dst[4*q]   = base64_value_char(v0);
+			dst[4*q+1] = base64_value_char(v1);
+			dst[4*q+2] = '=';
+			dst[4*q+3] = '=';
+		}
+		break;
+	case 2: {
+			unsigned char c0 = src[3*q];
+			unsigned char c1 = src[3*q+1];
 
-				unsigned char v0 = c0 >> 2;
-				unsigned char v1 = (c0 << 4 & 0x3f) | c1 >> 4;
-				unsigned char v2 = c1 << 2 & 0x3f; 
+			unsigned char v0 = c0 >> 2;
+			unsigned char v1 = (c0 << 4 & 0x3f) | c1 >> 4;
+			unsigned char v2 = c1 << 2 & 0x3f;
 
-				dst[4*q]   = base64_value_char(v0);
-				dst[4*q+1] = base64_value_char(v1);
-				dst[4*q+2] = base64_value_char(v2);
-				dst[4*q+3] = '=';
-			}
-			break;
+			dst[4*q]   = base64_value_char(v0);
+			dst[4*q+1] = base64_value_char(v1);
+			dst[4*q+2] = base64_value_char(v2);
+			dst[4*q+3] = '=';
+		}
+		break;
 	}
 }
 
