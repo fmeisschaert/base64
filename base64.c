@@ -88,20 +88,20 @@ void encode_base64(const unsigned char *src, size_t len,unsigned char *dst)
 	}
 }
 
-#define DECODE_STRICT    0x1
-#define DECODE_ERR_MOD1  0x2
+#define DECODE_STRICT     0x1
+#define DECODE_TRAILING1  0x2
 
 #define OK 0
-#define ERROR_INVALID_CHAR   1
-#define ERROR_TRAILING_MOD1  2
+#define ERROR_INVALID_CHAR  1
+#define ERROR_TRAILING1     2
 
 // assume dst has enough space for ((len + 3) / 4) * 3 characters
-int decode_base64(int mode, const unsigned char *src, size_t len,unsigned char *dst, size_t *dlen)
+int decode_base64(int flags, const unsigned char *src, size_t *slen,unsigned char *dst, size_t *dlen)
 {
-	size_t j = 0;
+	size_t si = 0, di = 0;
+	size_t len = *slen;
 
-	int decode_strict = mode & DECODE_STRICT;
-	int decode_err_mod1 = mode & DECODE_ERR_MOD1;
+	int decode_strict = flags & DECODE_STRICT;
 
 	uint_least32_t w = 0;
 	int r = 0;
@@ -111,7 +111,8 @@ int decode_base64(int mode, const unsigned char *src, size_t len,unsigned char *
 
 		if (v == 0xc0) {
 			if (decode_strict) {
-				*dlen = j;
+				*slen = i;
+				*dlen = di;
 				return ERROR_INVALID_CHAR;
 			}
 			continue;
@@ -126,31 +127,42 @@ int decode_base64(int mode, const unsigned char *src, size_t len,unsigned char *
                 r++;
 
 		if (r == 4) {
-			dst[j++] = (unsigned char) (w >> 16);  // w = * aaaaaa bb
-			dst[j++] = (unsigned char) (w >> 8);   //                bbbb cccc
-			dst[j++] = (unsigned char) w;          //                         cc dddddd
+			dst[di++] = (unsigned char) (w >> 16);  // w = * aaaaaa bb
+			dst[di++] = (unsigned char) (w >> 8);   //                bbbb cccc
+			dst[di++] = (unsigned char) w;          //                         cc dddddd
+			si = i + 1;
 			r = 0;
 		}
 	}
 
+	si += r;
+
 	switch (r) {
 		case 2:
-			dst[j++] = (unsigned char) (w >> 4);   // w = * aaaaaa bb ....
+			dst[di++] = (unsigned char) (w >> 4);   // w = * aaaaaa bb ....
+			if (si < len && src[si] == '=') si++;
+			if (si < len && src[si] == '=') si++;
 			break;
 		case 3:
-			dst[j++] = (unsigned char) (w >> 10);  // w = * aaaaaa bb
-			dst[j++] = (unsigned char) (w >> 2);   //                bbbb cccc ..
+			dst[di++] = (unsigned char) (w >> 10);  // w = * aaaaaa bb
+			dst[di++] = (unsigned char) (w >> 2);   //                bbbb cccc ..
+			if (si < len && src[si] == '=') si++;
 			break;
 		case 1:
-			if (decode_err_mod1) {
-				*dlen = j;
-				return ERROR_TRAILING_MOD1;
+			if (flags & DECODE_TRAILING1) {
+				dst[di++] = (unsigned char) (w << 2);   // w = * aaaaaa 00
 			}
-			dst[j++] = (unsigned char) (w << 2);   // w = * aaaaaa
+			else {
+				si--;
+			}
+			*slen = si;
+			*dlen = di;
+			return ERROR_TRAILING1;
 			break;
 	}
 
-	*dlen = j;
+	*slen = si;
+	*dlen = di;
 	return OK;
 }
 

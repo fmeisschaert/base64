@@ -7,6 +7,9 @@
 *.obj
 *.elf
 
+# Intermediate files
+*.s
+
 # Linker output
 *.ilk
 *.map
@@ -35,6 +38,7 @@
 *.i*86
 *.x86_64
 *.hex
+test_base64
 
 # Debug files
 *.dSYM/

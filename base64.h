@@ -5,14 +5,14 @@
 
 void encode_base64(const unsigned char *src, size_t len,unsigned char *dst);
 
-#define DECODE_STRICT    0x1
-#define DECODE_ERR_MOD1  0x2
+#define DECODE_STRICT     0x1
+#define DECODE_TRAILING1  0x2
 
 #define OK 0
-#define ERROR_INVALID_CHAR   1
-#define ERROR_TRAILING_MOD1  2
+#define ERROR_INVALID_CHAR  1
+#define ERROR_TRAILING1     2
 
-int decode_base64(int mode, const unsigned char *src, size_t len,unsigned char *dst, size_t *dlen);
+int decode_base64(int mode, const unsigned char *src, size_t *slen,unsigned char *dst, size_t *dlen);
 
 #endif // BASE64_H
 
