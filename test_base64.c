@@ -6,7 +6,7 @@
 unsigned char original[64] = "urR4C,$9r3V87z89#t*KEXO@73j$241(3m9A+1T))OlSLD5tg2blpa5JaOTzxaGl";
 unsigned char expected[88] = "dXJSNEMsJDlyM1Y4N3o4OSN0KktFWE9ANzNqJDI0MSgzbTlBKzFUKSlPbFNMRDV0ZzJibHBhNUphT1R6eGFHbA==";
 
-#define TSIZE 6
+#define TSIZE 9
 struct test {
 	unsigned char *data;
 	size_t len;
@@ -18,6 +18,9 @@ struct test {
 	{ (unsigned char *) "ABC DEF=;#$%", 11, 0 },
 	{ (unsigned char *) "ABC DEF==;#$", 11, 0 },
 	{ (unsigned char *) "ABC DEF===;1", 11, 0 },
+	{ (unsigned char *) "ABC DE", 6, DECODE_STRICT },
+	{ (unsigned char *) "QUJDR;", 6, DECODE_STRICT },
+	{ (unsigned char *) "QUJDR;", 6, DECODE_STRICT | DECODE_TRAILING1 },
 };
 
 void test(struct test *tst)
@@ -35,7 +38,6 @@ void test(struct test *tst)
 	for (size_t i = 0; i < dlen; i++) printf(" %02hhx",decoded[i]);
 	printf("  dlen=%zd\n\n",dlen);
 }
-
 
 int main()
 {
