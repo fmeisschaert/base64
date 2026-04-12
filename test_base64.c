@@ -1,80 +1,169 @@
 #include <stdio.h>
-#include <time.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <inttypes.h>
 #include "base64.h"
 
-unsigned char original[64] = "urR4C,$9r3V87z89#t*KEXO@73j$241(3m9A+1T))OlSLD5tg2blpa5JaOTzxaGl";
-unsigned char expected[88] = "dXJSNEMsJDlyM1Y4N3o4OSN0KktFWE9ANzNqJDI0MSgzbTlBKzFUKSlPbFNMRDV0ZzJibHBhNUphT1R6eGFHbA==";
+/*
+#define BASE64_DEFAULT       0   // IN
+#define BASE64_OK            0   // OUT
+#define BASE64_STRICT        1   // IN
+#define BASE64_INVALID_CHAR  1   // OUT 
+#define BASE64_TRAILING1     2   // IN/OUT
+#define BASE64_PADDING       4   // IN/OUT
+#define BASE64_END_OF_INPUT  8   // OUT
+*/
 
-#define TSIZE 9
-struct test {
-	unsigned char *data;
-	size_t len;
-	int flags;
-} tests[TSIZE] = {
-	{ (unsigned char *) "ABCDE", 5, 0 },
-	{ (unsigned char *) "ABCDE", 5, DECODE_TRAILING1 },
-	{ (unsigned char *) "ABC DEF;#$%!", 11, 0 },
-	{ (unsigned char *) "ABC DEF=;#$%", 11, 0 },
-	{ (unsigned char *) "ABC DEF==;#$", 11, 0 },
-	{ (unsigned char *) "ABC DEF===;1", 11, 0 },
-	{ (unsigned char *) "ABC DE", 6, DECODE_STRICT },
-	{ (unsigned char *) "QUJDR;", 6, DECODE_STRICT },
-	{ (unsigned char *) "QUJDR;", 6, DECODE_STRICT | DECODE_TRAILING1 },
-};
-
-void test(struct test *tst)
+char *ret_str(int r)
 {
-	unsigned char decoded[20];
+	static char *s = NULL;
+	if (!s) s = malloc(32);
 
-	printf("\n");
-	printf("Original: flags=%d\n%.*s\n",tst->flags,(int)tst->len,tst->data);
+	s[0] = 0;
+	s[1] = 0;
 
-	size_t dlen;
-	size_t slen = tst->len;
-	int r = decode_base64(tst->flags,tst->data,&slen,decoded,&dlen);
+	if (r == 0) {
+		strcat(s," OK");
+		return s + 1;
+	}
 
-	printf("Decoded: result=%d slen=%zd\n",r,slen);
-	for (size_t i = 0; i < dlen; i++) printf(" %02hhx",decoded[i]);
-	printf("  dlen=%zd\n\n",dlen);
+	if (r & BASE64_INVALID_CHAR) strcat(s," IC");
+	if (r & BASE64_TRAILING1)    strcat(s," TR1");
+	if (r & BASE64_PADDING)      strcat(s," PAD");
+	if (r & BASE64_END_OF_INPUT) strcat(s," EOI");
+
+	return s + 1;
 }
+
+char bit(uint32_t st,int n)
+{
+	return st & 1 << n ? '1' : '0';
+}
+
+char *state_str(uint32_t st)
+{
+	static char *s = NULL;
+	if (!s) s = malloc(64);
+
+	char *cp = s;
+
+	unsigned r = st & 0x3;
+
+	switch (r) {
+	case 3:
+		for (int k = 19; k >= 14; k--) *cp++ = bit(st,k);
+		*cp++ = ' ';
+	case 2:
+		for (int k = 13; k >=  8; k--) *cp++ = bit(st,k);
+		*cp++ = ' ';
+	case 1:
+		for (int k =  7; k >=  2; k--) *cp++ = bit(st,k);
+		*cp++ = ' ';
+	}
+	sprintf(cp,"(%u)",r);
+
+	return s;
+}
+
+int idx(char *s, int c)
+{
+	char *cp = strchr(s,c);
+	if (*cp) return cp - s;
+	else return strlen(s);
+}
+
+const char *original = "eCbnLL$1L3c/kL\303\253~R aQuf3d8_Lh:X,";
+const char *expected = "ZUNibkxMJDFMM2Mva0zDq35SIGFRdWYzZDhfTGg6WCw=";
+
+#define ENCLEN(n) (((n+2)/3)*4)
+#define DECLEN(n) (((n+3)/4)*3)
 
 int main()
 {
-	unsigned char encoded[88];
-	unsigned char decoded[64];
-	unsigned char encoded_ext[92];
-	size_t slen,dlen;
+	unsigned char *src = NULL, *dst = NULL;
+	size_t slo, dlo;  // length / offset
+	uint32_t st;
+	int r;
 
-	encode_base64(original,64,encoded);
+	slo = strlen(original);
+	dst = realloc(dst,ENCLEN(slo)+1);
+
+	printf("\n### encode with padding ###\n\n");
+
+	dlo = 0;
+	r = encode_base64(BASE64_PADDING,original,slo,dst,&dlo);
+	dst[dlo] = 0;
+
+	printf("E: %.*s\n",dlo,dst);
+	printf("X: %s\n",expected);
+	printf("ret = %s\n",ret_str(r));
+
+	printf("\n### encode without padding ###\n\n");
+
+	dlo = 0;
+	r = encode_base64(BASE64_DEFAULT,original,slo,dst,&dlo);
+	dst[dlo] = 0;
+
+	printf("E: %.*s\n",dlo,dst);
+	printf("X: %.*s\n",idx(expected,'='),expected);
+	printf("ret = %s\n",ret_str(r));
+
+	printf("\n### decode ###\n\n");
+
+	slo = strlen(expected);
+	src = realloc(src,slo+1);
+	strcpy(src,original);
+
+	dst = realloc(dst,DECLEN(slo)+4);
+	strcpy(dst,"D: ");
+	dlo = 3;
+
+	r = decode_base64(BASE64_DEFAULT,expected,&slo,dst,&dlo);
+
+	printf("%.*s\n",dlo,dst);
+	printf("O: %s\n",original);
+	printf("ret = %s\n",ret_str(r));
+
+
+	printf("\n### decode in parts ###\n\n");
+
+	strncpy(src,expected,9);
+	src[9] = 0;
+	slo = strlen(src);
+	dlo = 0;
+	st = 0;
+
+	printf("B1: '%s'\n",src);
+	r = decode_base64_blocks(BASE64_DEFAULT,src,&slo,dst,&dlo,&st);
+
+	printf("after block 1: slo = %zu, dlo = %zu, ret = %s, state = %s\n",
+		slo, dlo, ret_str(r), state_str(st));
+	printf("D: '%.*s'\n",dlo,dst);
+
+	strcpy(src,expected+9);
+	memmove(src+12,src+10,strlen(src+7)+1);
+	src[10] = ' ';
+	src[11] = ' ';
+	slo = strlen(src);
+
+	r = decode_base64_blocks(BASE64_DEFAULT,src,&slo,dst,&dlo,&st);
+
+	printf("\nB2: '%s'\n",src);
+	printf("after block 2: slo = %zu, dlo = %zu, ret = %s, state = %s\n",
+		slo, dlo, ret_str(r), state_str(st));
+	printf("D: '%.*s'\n",dlo,dst);
+
+	printf("\nST\n");
+	r = decode_base64_state(BASE64_DEFAULT,st,dst,&dlo);
+
+	printf("after state: slo = %zu, dlo = %zu, ret = %s, state = %s\n",
+		slo, dlo, ret_str(r), state_str(st));
+	printf("D: '%.*s'\n",dlo,dst);
+	printf("O: '%s'\n",original);
 
 	printf("\n");
-	printf("Encoded:\n%.*s\n",88,encoded);
-	printf("Expected:\n%.*s\n",88,expected);
-
-	slen = 88;
-	decode_base64(0,encoded,&slen,decoded,&dlen);
-
-	printf("\n");
-	printf("Decoded: %zd\n%.*s\n",dlen,64,decoded);
-	printf("Original:\n%.*s\n\n",64,original);
-
-	memcpy(encoded_ext,expected,40);
-	memcpy(encoded_ext + 40,"\n$",2);
-	memcpy(encoded_ext + 42,expected+40,46);
-	memcpy(encoded_ext + 88,"\t.\t.",4);
-
-	slen = 92;
-	decode_base64(0,encoded_ext,&slen,decoded,&dlen);
-
-	printf("\n");
-	printf("Encoded with extra chars:\n%.*s\n",92,encoded_ext);
-	printf("Decoded: %zd\n%.*s\n",dlen,64,decoded);
-	printf("Original:\n%.*s\n\n",64,original);
-
-	for (int i = 0; i < TSIZE; i++) {
-		test(tests+i);
-	}
 
 	return 0;
 }
