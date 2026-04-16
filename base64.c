@@ -52,7 +52,7 @@ int encode_base64(int flags, const unsigned char *src, size_t len,unsigned char 
 	size_t q = len / 3;
 	size_t r = len % 3;
 
-	size_t di = dst_offset ? *dst_offset : 0;
+	size_t di = *dst_offset;
 	unsigned char *_dst = dst + di;
 
 	for (size_t i = 0; i < q; i++) {
